@@ -54,17 +54,9 @@ class WebSocketHandler:
         self.sock = sock
         self.is_connected = False
 
-    def handle_handshake(self, request_data):
-        """Perform WebSocket handshake"""
+    def handle_handshake(self, sec_key):
+        """Perform WebSocket handshake. `sec_key` is the client's Sec-WebSocket-Key."""
         try:
-            headers = {}
-            lines = request_data.split('\r\n')
-            for line in lines[1:]:
-                if ':' in line:
-                    key, val = line.split(':', 1)
-                    headers[key.strip().lower()] = val.strip()
-
-            sec_key = headers.get('sec-websocket-key')
             if not sec_key:
                 return False
 
@@ -169,16 +161,15 @@ async def start_pd():
     if not main_patch.exists():
         raise FileNotFoundError(f"Patch not found: {main_patch}")
 
-    cmd = [
-        "pd",
-        "-nogui",
-        "-alsa",
-        "-rt",
-        "-channels", "2",
-        "-samplerate", "48000",
-        "-blocksize", "64",
-        "-open", str(main_patch),
-    ]
+    # pd flag notes:
+    #   -r (not -samplerate); -rt needs setuid so we skip it; XFMIX_NOAUDIO
+    #   lets you boot without an audio device (useful for headless dev/CI).
+    cmd = ["pd", "-nogui"]
+    if os.environ.get("XFMIX_NOAUDIO") == "1":
+        cmd += ["-noaudio"]
+    else:
+        cmd += ["-alsa", "-channels", "2", "-r", "48000", "-audiobuf", "20"]
+    cmd += ["-open", str(main_patch)]
 
     try:
         pd_process = subprocess.Popen(
@@ -349,22 +340,14 @@ class FileHandler(SimpleHTTPRequestHandler):
                     proc.kill()
 
     def handle_websocket(self):
-        """Handle WebSocket connection"""
+        """Handle WebSocket connection. BaseHTTPRequestHandler has already
+        parsed the request line and headers into self.headers — do NOT re-read
+        from rfile, that would block forever waiting for bytes that aren't
+        coming."""
         try:
-            # Read HTTP headers
-            request_line = self.rfile.readline().decode()
-            headers_raw = []
-            while True:
-                header = self.rfile.readline().decode()
-                if header == '\r\n':
-                    break
-                headers_raw.append(header)
-
-            request_data = request_line + ''.join(headers_raw)
-
-            # Create WebSocket handler
+            sec_key = self.headers.get('Sec-WebSocket-Key')
             ws = WebSocketHandler(self.request)
-            if not ws.handle_handshake(request_data):
+            if not ws.handle_handshake(sec_key):
                 return
 
             ws_clients.add(ws)
