@@ -1,77 +1,70 @@
 # xfmix – Computer Music History Synthesizer + Drum Machine
 
-A solarpunk-inspired software synthesizer for Raspberry Pi 5, following the history of computer music from IRCAM and Bell Labs to the present day.
+A software synthesizer for Raspberry Pi 5 grounded in computer music history, from IRCAM physical modeling to Xenakis stochastic composition.
 
-## Instruments
+![xfmix](https://img.shields.io/badge/computer_music-history-brightgreen)
 
-### Water Drop Drum Machine
-Physical modeling percussion synthesizer inspired by:
-- **Karplus-Strong algorithm** (1983) – plucked string synthesis via feedback delay
-- **Granular synthesis** – Ge Wang, Perry Cook (Princeton)
-- **Musique concrète** – Pierre Schaeffer's resonant object approach
+## What Is xfmix?
 
-Each drum voice simulates water drops hitting surfaces at different pitches with natural decay.
+**Two instruments on one page:**
 
-### Internal Combustion Engine Synthesizer
-Physical modeling synthesis inspired by:
-- **IRCAM physical modeling** (1980s-90s) – Modalys, Pd~
-- **Yamaha VL synthesis** – modal synthesis of wind instruments applied to mechanical systems
-- **Stochastic misfires** – Iannis Xenakis' probabilistic approach to composition
+1. **Water Drop Drum Machine** – Physical modeling percussion inspired by Karplus-Strong algorithms and granular synthesis (Ge Wang, Perry Cook). Each drum voice simulates water drops hitting surfaces with natural decay and resonance.
 
-The engine model includes:
-- Piston-driven impulse trains (4, 6, or 8 cylinders)
-- Resonant chamber modeling (bandpass filters)
-- RPM control → fundamental frequency mapping
-- Load/throttle → spectral character
+2. **Internal Combustion Engine Synthesizer** – Modal synthesis of mechanical systems (IRCAM tradition, Yamaha VL series). Models piston-driven impulse trains with resonant chamber filtering, RPM control, and load/throttle parameters.
 
-### Quantum Stochasticity (Qubit)
-A Bloch sphere-inspired probability field that injects randomness and superposition into synthesis parameters, grounded in:
-- **Xenakis stochastic music** (1954+)
-- **Chance operations** – John Cage's influence on algorithmic composition
-- **Quantum mechanics metaphor** – superposition as creative synthesis control
+3. **Quantum Stochasticity (Qubit)** – Xenakis-inspired probability fields for injecting controlled randomness into synthesis parameters. Visualized as a Bloch sphere for intuitive manipulation.
+
+**Browser-based controller** runs in Safari on any device on your network. **Pure Data synthesis engine** runs on the Pi itself using libpd and FUDI protocol.
 
 ## Quick Start
 
-### Installation
+### 1. Install
+
 ```bash
 cd ~/xfmix
 bash install.sh
 ```
 
-Dependencies installed:
-- `puredata` + `puredata-extra` (synthesis engine)
-- `python3-aiohttp` + `python3-websockets` (web server)
+This will prompt for your password and install:
+- Pure Data (`puredata puredata-extra`)
+- Configure systemd user service
+- Create the `xfmix` terminal command
 
-### Running
+### 2. Run
 
-Start the synthesizer:
 ```bash
 xfmix
 ```
 
-Open in Safari on your network:
-```
-http://<pi-ip>:8866
-```
+Open http://<your-pi-ip>:8866 in Safari (or any browser on your network).
 
-Commands:
+### 3. Play!
+
+- **Drum pads:** Click to trigger water drop percussion
+- **Keyboard:** Play notes (C-B) to drive the engine synth
+- **Sliders:** Adjust pitch, decay, RPM, load, resonance
+- **Qubit sphere:** Click or drag to inject stochasticity
+
+## Terminal Commands
+
 ```bash
-xfmix start       # Start service
-xfmix stop        # Stop service
-xfmix status      # Check status
-xfmix log         # View live logs
+xfmix              # Start (or show status)
+xfmix status       # Check if running
+xfmix log          # View live logs (Ctrl+C to exit)
+xfmix stop         # Stop the service
+xfmix restart      # Restart the service
 ```
 
-## Technical Architecture
+## Architecture
 
 ```
-Browser (Safari)
+Browser (Safari on network)
     ↓ WebSocket
-Python Server (asyncio + aiohttp)
-    ↓ FUDI protocol on localhost:9001
+Python Server (localhost:8866)
+    ↓ FUDI protocol (localhost:9001)
 Pure Data (pd -nogui)
     ↓ Audio synthesis
-Pi 5 ALSA Audio Output
+Pi 5 Audio Output (ALSA/JACK)
 ```
 
 **Ports:**
@@ -82,41 +75,81 @@ Pi 5 ALSA Audio Output
 
 ```
 ~/xfmix/
-├── patches/           # Pure Data synthesis patches
-│   ├── main.pd       # Top-level patch
-│   ├── water_drum.pd # Percussion synth
-│   └── engine_synth.pd # Engine modeling synth
-├── static/           # Web UI assets
-│   └── index.html    # Self-contained controller UI
-├── server.py         # Python WebSocket bridge
-├── install.sh        # Setup script
-├── xfmix.service     # systemd unit
+├── patches/              # Pure Data synthesis engine
+│   ├── main.pd          # Top-level patch (loads all)
+│   ├── water_drum.pd    # Percussion synthesizer
+│   └── engine_synth.pd  # Engine model synthesizer
+├── static/              # Web UI
+│   └── index.html       # Browser controller (self-contained)
+├── server.py            # Python WebSocket bridge
+├── install.sh           # Setup script
+├── setup-xfmix.sh       # Full installation with sudo
+├── xfmix.service        # systemd unit file
 └── README.md
 ```
 
 ## Design Philosophy
 
-**Computer music history as a design language:** Each component references a foundational technique in algorithmic and electronic music:
-- **Physical modeling** as a synthesis paradigm (IRCAM tradition)
-- **Pure Data** as the core engine (Miller Puckette, 1996 — continuation of Max)
-- **Stochastic processes** for controlled randomness (Xenakis)
-- **Modal synthesis** for realistic instrumental/mechanical modeling
-- **Granular synthesis** for textural percussion
+**Computer music history as a design language:**
 
-The result is a system that *is* computer music history, not just *inspired by* it.
+- **Pure Data** (Miller Puckette, 1996) – Core synthesis engine, direct descendant of Max at IRCAM
+- **Physical modeling** (IRCAM, 1980s; Yamaha VL, 1989) – Simulating physical systems to generate sound
+- **Granular synthesis** (Ge Wang, Perry Cook, 2000s) – Karplus-Strong tradition of feedback-based synthesis
+- **Stochastic composition** (Iannis Xenakis, 1954+) – Probability and chance as compositional tools
+- **Modal synthesis** – Resonance modeling of vibrating systems
+
+The result is a system that *is* computer music history, not just inspired by it.
+
+## Troubleshooting
+
+### Pure Data not found
+```bash
+sudo apt install puredata puredata-extra
+```
+
+### Port 8866 already in use
+Change the port in `server.py` (search for `HTTP_PORT`).
+
+### WebSocket connection fails
+Check that `pd` is running:
+```bash
+systemctl --user status xfmix
+```
+
+View logs for errors:
+```bash
+xfmix log
+```
+
+### No audio output
+- Check audio device: `aplay -l`
+- Verify ALSA is working: `speaker-test -t sine -f 1000 -l 1`
+- Check Pure Data is receiving messages: `xfmix log`
 
 ## References
 
-- Puckette, M. (1991). "Combining event and signal processing in the MAX graphical programming environment". ICMC.
-- Schaeffer, P. (1966). *Traité des objets musicaux*. Éditions du Seuil.
-- Xenakis, I. (1971). *Formalized Music*. Indiana University Press.
-- Cook, P., & Karjoth, G. (2006). "Modeling vocal tract mechanics". ICMC.
-- Smith, J. O. (2010). *Physical Audio Signal Processing*. W3K Publishing.
+The instruments and control scheme are grounded in:
+
+- **Puckette, M.** (1991). "Combining event and signal processing in the MAX graphical programming environment". ICMC.
+- **Schaeffer, P.** (1966). *Traité des objets musicaux*. Éditions du Seuil.
+- **Xenakis, I.** (1971). *Formalized Music*. Indiana University Press.
+- **Smith, J. O.** (2010). *Physical Audio Signal Processing*. W3K Publishing.
+- **Karplus, K. & Strong, A.** (1983). "Digital synthesis of plucked-string and drum timbres". JAES.
+
+## Project Links
+
+- **GitHub:** https://github.com/xboxzero/xfmix
+- **Pure Data:** http://puredata.info
+- **Raspberry Pi:** https://www.raspberrypi.com
 
 ## License
 
-MIT
+MIT – Open source, open synthesis.
 
 ## Author
 
 xboxzero (2026)
+
+---
+
+Built on the Pi 5 Solarpunk computing platform. Grounded in the history of IRCAM, Bell Labs, and algorithmic composition.
