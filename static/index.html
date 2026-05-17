@@ -266,6 +266,129 @@
             0% { top: 0; }
             100% { top: 100vh; }
         }
+
+        .display-section {
+            grid-column: 1 / -1;
+            border: 2px solid #0f0;
+            padding: 20px;
+            background: rgba(0, 255, 0, 0.02);
+        }
+
+        .display-section h2 {
+            font-size: 16px;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 1px solid #0f0;
+            padding-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .display-section h2 .meta {
+            font-size: 10px;
+            opacity: 0.6;
+            letter-spacing: 1px;
+        }
+
+        .display-wrap {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 4 / 3;
+            background: #000;
+            border: 1px solid #0f0;
+            overflow: hidden;
+            box-shadow: 0 0 24px rgba(0, 255, 0, 0.15) inset;
+        }
+
+        .display-wrap::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: repeating-linear-gradient(
+                to bottom,
+                rgba(0, 0, 0, 0) 0px,
+                rgba(0, 0, 0, 0) 2px,
+                rgba(0, 0, 0, 0.18) 3px
+            );
+            pointer-events: none;
+        }
+
+        .camera-feed,
+        .lissajous {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .camera-feed {
+            object-fit: cover;
+            filter: grayscale(0.6) contrast(1.05) brightness(0.85) hue-rotate(60deg);
+            transition: opacity 0.15s linear;
+        }
+
+        .camera-feed.error {
+            opacity: 0 !important;
+        }
+
+        .lissajous {
+            mix-blend-mode: screen;
+            transition: opacity 0.15s linear;
+        }
+
+        .display-controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 14px;
+            margin-top: 16px;
+        }
+
+        .display-controls .control-group {
+            margin-bottom: 0;
+        }
+
+        .display-controls .toggle-row {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .toggle-btn {
+            flex: 1 1 auto;
+            padding: 8px 10px;
+            border: 1px solid #0f0;
+            background: #0a0a0a;
+            color: #0f0;
+            font-family: inherit;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: all 0.1s;
+        }
+
+        .toggle-btn:hover {
+            background: rgba(0, 255, 0, 0.08);
+        }
+
+        .toggle-btn.active {
+            background: #0f0;
+            color: #0a0a0a;
+            box-shadow: 0 0 12px rgba(0, 255, 0, 0.6);
+        }
+
+        .cam-badge {
+            font-size: 9px;
+            padding: 3px 6px;
+            border: 1px solid #0f0;
+            border-radius: 3px;
+            opacity: 0.7;
+        }
+        .cam-badge.live { background: rgba(0,255,0,0.15); opacity: 1; }
+        .cam-badge.off { color: #f55; border-color: #f55; }
     </style>
 </head>
 <body>
@@ -277,6 +400,53 @@
     </div>
 
     <div class="container">
+        <!-- VISUAL DISPLAY -->
+        <div class="display-section">
+            <h2>
+                <span>Visual Display · Lissajous ⊗ Camera</span>
+                <span class="meta">
+                    <span class="cam-badge" id="cam-badge">CAM…</span>
+                </span>
+            </h2>
+            <div class="display-wrap">
+                <img class="camera-feed" id="camera-feed" alt="" src="/camera.mjpg">
+                <canvas class="lissajous" id="lissajous-canvas"></canvas>
+            </div>
+
+            <div class="display-controls">
+                <div class="control-group slider-group">
+                    <label class="control-label">Camera ↔ Lissajous</label>
+                    <input type="range" id="vis-mix" min="0" max="1" value="0.55" step="0.01">
+                </div>
+                <div class="control-group slider-group">
+                    <label class="control-label">Y:X Ratio</label>
+                    <input type="range" id="vis-ratio" min="0.25" max="4" value="1.5" step="0.01">
+                </div>
+                <div class="control-group slider-group">
+                    <label class="control-label">Phase</label>
+                    <input type="range" id="vis-phase" min="0" max="360" value="90" step="1">
+                </div>
+                <div class="control-group slider-group">
+                    <label class="control-label">Trail</label>
+                    <input type="range" id="vis-trail" min="0" max="0.98" value="0.88" step="0.01">
+                </div>
+                <div class="control-group">
+                    <label class="control-label">Source</label>
+                    <div class="toggle-row">
+                        <button class="toggle-btn active" id="vis-source-engine" data-source="engine">Engine</button>
+                        <button class="toggle-btn" id="vis-source-free" data-source="free">Free</button>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label">Audio</label>
+                    <div class="toggle-row">
+                        <button class="toggle-btn" id="vis-audible">Audible</button>
+                        <button class="toggle-btn" id="vis-camera-toggle">Camera</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- DRUM MACHINE -->
         <div class="instrument">
             <h2>Water Drop Drum</h2>
@@ -393,6 +563,7 @@
             setupQubit();
             setupSliders();
             setupCylinders();
+            Visuals.init();
         }
 
         // WebSocket connection
@@ -455,6 +626,7 @@
                         lane: lane,
                         velocity: 0.8
                     });
+                    Visuals.trigger('drum', { lane: lane, velocity: 0.8 });
                     pad.style.animation = 'none';
                     setTimeout(() => pad.style.animation = '', 10);
                 });
@@ -496,6 +668,7 @@
                 load: load,
                 cylinders: cylinders
             });
+            Visuals.trigger('engine', { note: note, velocity: velocity });
         }
 
         function releaseNote() {
@@ -562,6 +735,237 @@
                 });
             });
         }
+
+        // VISUALS — Lissajous oscilloscope overlaid on Pi camera feed.
+        // History reference: Mary Ellen Bute's oscilloscope films (1950s) and
+        // Ben Laposky's "Oscillons" — composing with X/Y sine pairs.
+        const Visuals = {
+            canvas: null,
+            ctx: null,
+            feed: null,
+            badge: null,
+            state: {
+                mix: 0.55,
+                ratio: 1.5,
+                phase: Math.PI / 2,
+                trail: 0.88,
+                source: 'engine',
+                audible: false,
+                cameraOn: true,
+            },
+            audio: { ctx: null, oscX: null, oscY: null, gain: null },
+            triggers: [],
+            baseFreq: 110,
+            time: 0,
+
+            init() {
+                this.canvas = document.getElementById('lissajous-canvas');
+                this.feed = document.getElementById('camera-feed');
+                this.badge = document.getElementById('cam-badge');
+                this.ctx = this.canvas.getContext('2d');
+
+                this.fitCanvas();
+                window.addEventListener('resize', () => this.fitCanvas());
+
+                // MJPEG never fires `load` reliably, so flip to LIVE optimistically.
+                let live = false;
+                const markLive = () => {
+                    if (live || !this.state.cameraOn) return;
+                    live = true;
+                    this.badge.textContent = 'LIVE';
+                    this.badge.className = 'cam-badge live';
+                };
+                this.feed.addEventListener('load', markLive);
+                setTimeout(markLive, 1500);
+                this.feed.addEventListener('error', () => {
+                    this.feed.classList.add('error');
+                    this.badge.textContent = 'NO CAM';
+                    this.badge.className = 'cam-badge off';
+                });
+
+                const wire = (id, fn) => {
+                    const el = document.getElementById(id);
+                    el.addEventListener('input', e => fn(parseFloat(e.target.value)));
+                    fn(parseFloat(el.value));
+                };
+                wire('vis-mix', v => { this.state.mix = v; this.applyMix(); });
+                wire('vis-ratio', v => { this.state.ratio = v; });
+                wire('vis-phase', v => { this.state.phase = v * Math.PI / 180; });
+                wire('vis-trail', v => { this.state.trail = v; });
+
+                document.getElementById('vis-source-engine')
+                    .addEventListener('click', () => this.setSource('engine'));
+                document.getElementById('vis-source-free')
+                    .addEventListener('click', () => this.setSource('free'));
+
+                const audibleBtn = document.getElementById('vis-audible');
+                audibleBtn.addEventListener('click', () => {
+                    this.state.audible = !this.state.audible;
+                    audibleBtn.classList.toggle('active', this.state.audible);
+                    if (this.state.audible) this.startAudio();
+                    else this.stopAudio();
+                });
+
+                const camBtn = document.getElementById('vis-camera-toggle');
+                camBtn.classList.add('active');
+                camBtn.addEventListener('click', () => {
+                    this.state.cameraOn = !this.state.cameraOn;
+                    camBtn.classList.toggle('active', this.state.cameraOn);
+                    if (this.state.cameraOn) {
+                        this.feed.classList.remove('error');
+                        this.feed.src = '/camera.mjpg?t=' + Date.now();
+                        this.badge.textContent = 'CAM…';
+                        this.badge.className = 'cam-badge';
+                        live = false;
+                        setTimeout(markLive, 1500);
+                    } else {
+                        this.feed.src = '';
+                        this.feed.classList.add('error');
+                        this.badge.textContent = 'OFF';
+                        this.badge.className = 'cam-badge off';
+                    }
+                });
+
+                this.start();
+            },
+
+            fitCanvas() {
+                const rect = this.canvas.getBoundingClientRect();
+                const dpr = window.devicePixelRatio || 1;
+                this.canvas.width = Math.max(1, Math.round(rect.width * dpr));
+                this.canvas.height = Math.max(1, Math.round(rect.height * dpr));
+                this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+                this.ctx.fillStyle = '#000';
+                this.ctx.fillRect(0, 0, rect.width, rect.height);
+            },
+
+            applyMix() {
+                // 0 = camera only, 1 = lissajous only.
+                this.feed.style.opacity = (1 - this.state.mix).toFixed(2);
+                this.canvas.style.opacity = this.state.mix.toFixed(2);
+            },
+
+            setSource(name) {
+                this.state.source = name;
+                document.getElementById('vis-source-engine')
+                    .classList.toggle('active', name === 'engine');
+                document.getElementById('vis-source-free')
+                    .classList.toggle('active', name === 'free');
+            },
+
+            trigger(kind, data) {
+                const intensity = data.velocity != null ? data.velocity : 0.8;
+                this.triggers.push({
+                    t: 0,
+                    kind,
+                    intensity,
+                    lane: data.lane != null ? data.lane : 0,
+                    note: data.note != null ? data.note : 60,
+                });
+                if (this.triggers.length > 12) this.triggers.shift();
+            },
+
+            start() {
+                const loop = () => {
+                    this.tick();
+                    requestAnimationFrame(loop);
+                };
+                requestAnimationFrame(loop);
+            },
+
+            tick() {
+                const w = this.canvas.clientWidth;
+                const h = this.canvas.clientHeight;
+                if (!w || !h) return;
+
+                // Decay the trail by drawing translucent black over the frame.
+                this.ctx.globalCompositeOperation = 'source-over';
+                this.ctx.fillStyle =
+                    `rgba(0,0,0,${(1 - this.state.trail).toFixed(3)})`;
+                this.ctx.fillRect(0, 0, w, h);
+
+                this.triggers = this.triggers.filter(t => t.t < 1);
+                this.triggers.forEach(t => { t.t += 0.025; });
+
+                const dt = 1 / 60;
+                this.time += dt;
+
+                let fx = this.baseFreq;
+                if (this.state.source === 'engine' && currentNote != null) {
+                    // Drop two octaves so the figure stays legible.
+                    fx = 440 * Math.pow(2, (currentNote - 69) / 12) / 4;
+                }
+                let fy = fx * this.state.ratio;
+
+                let amp = 0.45;
+                let extraPhase = 0;
+                for (const t of this.triggers) {
+                    amp += (1 - t.t) * 0.12 * t.intensity;
+                    extraPhase += (1 - t.t) * t.intensity * 0.6;
+                    if (t.kind === 'drum') fy += (t.lane - 2.5) * 3;
+                }
+                if (amp > 0.92) amp = 0.92;
+
+                const cx = w / 2;
+                const cy = h / 2;
+                const rx = w * 0.45 * amp;
+                const ry = h * 0.45 * amp;
+                const phase = this.state.phase + extraPhase;
+                const steps = 240;
+                const tStep = dt / steps;
+                const tStart = this.time;
+
+                this.ctx.lineWidth = 1.3;
+                this.ctx.strokeStyle = 'rgba(0,255,140,0.85)';
+                this.ctx.shadowBlur = 8;
+                this.ctx.shadowColor = 'rgba(0,255,120,0.5)';
+                this.ctx.beginPath();
+                for (let i = 0; i <= steps; i++) {
+                    const tt = tStart + i * tStep;
+                    const x = cx + Math.sin(2 * Math.PI * fx * tt + phase) * rx;
+                    const y = cy + Math.sin(2 * Math.PI * fy * tt) * ry;
+                    if (i === 0) this.ctx.moveTo(x, y);
+                    else this.ctx.lineTo(x, y);
+                }
+                this.ctx.stroke();
+                this.ctx.shadowBlur = 0;
+
+                if (this.state.audible && this.audio.ctx) {
+                    const now = this.audio.ctx.currentTime;
+                    this.audio.oscX.frequency.setTargetAtTime(fx, now, 0.02);
+                    this.audio.oscY.frequency.setTargetAtTime(fy, now, 0.02);
+                }
+            },
+
+            startAudio() {
+                if (this.audio.ctx) return;
+                const Ctx = window.AudioContext || window.webkitAudioContext;
+                if (!Ctx) return;
+                const ctx = new Ctx();
+                const gain = ctx.createGain();
+                gain.gain.value = 0.06;
+                gain.connect(ctx.destination);
+                const oscX = ctx.createOscillator();
+                const oscY = ctx.createOscillator();
+                oscX.type = 'sine';
+                oscY.type = 'sine';
+                oscX.frequency.value = this.baseFreq;
+                oscY.frequency.value = this.baseFreq * this.state.ratio;
+                oscX.connect(gain);
+                oscY.connect(gain);
+                oscX.start();
+                oscY.start();
+                this.audio = { ctx, gain, oscX, oscY };
+            },
+
+            stopAudio() {
+                if (!this.audio.ctx) return;
+                try { this.audio.oscX.stop(); this.audio.oscY.stop(); }
+                catch (_) {}
+                this.audio.ctx.close();
+                this.audio = { ctx: null, oscX: null, oscY: null, gain: null };
+            },
+        };
 
         // START
         window.addEventListener('load', init);

@@ -15,7 +15,7 @@ import struct
 import subprocess
 import sys
 from pathlib import Path
-from http.server import HTTPServer, SimpleHTTPRequestHandler
+from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 
 logging.basicConfig(
     level=logging.INFO,
@@ -29,6 +29,16 @@ STATIC_DIR = XFMIX_DIR / "static"
 PD_FUDI_PORT = 9001
 PD_FUDI_ADDR = "127.0.0.1"
 HTTP_PORT = 8866
+CAMERA_CMD = [
+    "rpicam-vid",
+    "--codec", "mjpeg",
+    "--width", "640",
+    "--height", "480",
+    "--framerate", "15",
+    "--timeout", "0",
+    "--nopreview",
+    "-o", "-",
+]
 
 # Global state
 pd_process = None
@@ -245,6 +255,8 @@ class FileHandler(SimpleHTTPRequestHandler):
     def do_GET(self):
         if self.path == '/ws':
             self.handle_websocket()
+        elif self.path.startswith('/camera.mjpg'):
+            self.handle_camera()
         else:
             # Serve static files
             self.path = self.path if self.path != '/' else '/index.html'
@@ -274,6 +286,67 @@ class FileHandler(SimpleHTTPRequestHandler):
                     self.send_error(500)
             else:
                 self.send_error(403)
+
+    def handle_camera(self):
+        """Stream Pi camera as multipart MJPEG (one rpicam-vid per client)"""
+        proc = None
+        try:
+            proc = subprocess.Popen(
+                CAMERA_CMD,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+            )
+        except FileNotFoundError:
+            logger.error("✗ rpicam-vid not found")
+            self.send_error(503, "Camera unavailable")
+            return
+
+        try:
+            self.send_response(200)
+            self.send_header(
+                "Content-Type",
+                "multipart/x-mixed-replace; boundary=xfmixframe",
+            )
+            self.send_header("Cache-Control", "no-cache, private")
+            self.send_header("Pragma", "no-cache")
+            self.end_headers()
+
+            buf = b""
+            while True:
+                chunk = proc.stdout.read(8192)
+                if not chunk:
+                    break
+                buf += chunk
+                while True:
+                    soi = buf.find(b"\xff\xd8")
+                    if soi < 0:
+                        buf = b""
+                        break
+                    eoi = buf.find(b"\xff\xd9", soi + 2)
+                    if eoi < 0:
+                        if soi > 0:
+                            buf = buf[soi:]
+                        break
+                    frame = buf[soi : eoi + 2]
+                    buf = buf[eoi + 2 :]
+                    self.wfile.write(b"--xfmixframe\r\n")
+                    self.wfile.write(b"Content-Type: image/jpeg\r\n")
+                    self.wfile.write(
+                        f"Content-Length: {len(frame)}\r\n\r\n".encode()
+                    )
+                    self.wfile.write(frame)
+                    self.wfile.write(b"\r\n")
+        except (BrokenPipeError, ConnectionResetError):
+            pass
+        except Exception as e:
+            logger.error(f"Camera stream error: {e}")
+        finally:
+            if proc:
+                proc.terminate()
+                try:
+                    proc.wait(timeout=2)
+                except subprocess.TimeoutExpired:
+                    proc.kill()
 
     def handle_websocket(self):
         """Handle WebSocket connection"""
@@ -324,7 +397,8 @@ async def run_server():
     def make_handler(*args, **kwargs):
         return FileHandler(*args, directory=STATIC_DIR, **kwargs)
 
-    server = HTTPServer(('0.0.0.0', HTTP_PORT), make_handler)
+    server = ThreadingHTTPServer(('0.0.0.0', HTTP_PORT), make_handler)
+    server.daemon_threads = True
 
     try:
         hostname = os.popen("hostname -I").read().strip().split()[0]

@@ -14,6 +14,8 @@ A software synthesizer for Raspberry Pi 5 grounded in computer music history, fr
 
 3. **Quantum Stochasticity (Qubit)** – Xenakis-inspired probability fields for injecting controlled randomness into synthesis parameters. Visualized as a Bloch sphere for intuitive manipulation.
 
+4. **Lissajous ⊗ Camera Display** – Oscilloscope-style Lissajous figure (Mary Ellen Bute / Ben Laposky tradition) overlaid on the Pi camera feed via `rpicam-vid` MJPEG. The figure tracks the engine note frequency, reacts to drum hits, and can be made audible through Web Audio.
+
 **Browser-based controller** runs in Safari on any device on your network. **Pure Data synthesis engine** runs on the Pi itself using libpd and FUDI protocol.
 
 ## Quick Start
@@ -125,6 +127,9 @@ xfmix log
 - Check audio device: `aplay -l`
 - Verify ALSA is working: `speaker-test -t sine -f 1000 -l 1`
 - Check Pure Data is receiving messages: `xfmix log`
+
+### Camera shows "NO CAM"
+The display section uses `rpicam-vid` to stream MJPEG at `/camera.mjpg`. If you don't have a Pi camera attached (or `rpicam-vid` isn't installed), the badge flips to "NO CAM" and only the Lissajous half of the display renders. Install with `sudo apt install rpicam-apps` or use the in-page **Camera** toggle to hide it.
 
 ## References
 
