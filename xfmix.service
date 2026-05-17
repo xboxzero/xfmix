@@ -1,0 +1,17 @@
+[Unit]
+Description=xfmix - Computer Music History Synthesizer
+Documentation=http://github.com/xboxzero/xfmix
+After=network.target
+
+[Service]
+Type=simple
+User=%u
+WorkingDirectory=%h/xfmix
+ExecStart=/usr/bin/python3 %h/xfmix/server.py
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target

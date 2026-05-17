@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>xfmix – Computer Music Synthesizer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: #0a0a0a;
+            color: #0f0;
+            padding: 20px;
+            line-height: 1.4;
+            overflow-x: hidden;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #0f0;
+            padding-bottom: 15px;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            letter-spacing: 2px;
+            text-shadow: 0 0 10px #0f0;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 12px;
+            color: #0a0;
+            opacity: 0.7;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .instrument {
+            border: 2px solid #0f0;
+            padding: 20px;
+            background: rgba(0, 255, 0, 0.02);
+        }
+
+        .instrument h2 {
+            font-size: 16px;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 1px solid #0f0;
+            padding-bottom: 10px;
+        }
+
+        .control-group {
+            margin-bottom: 20px;
+        }
+
+        .control-label {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+            display: block;
+            color: #0f0;
+        }
+
+        .drum-pads {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .pad {
+            aspect-ratio: 1;
+            border: 2px solid #0f0;
+            background: #0a0a0a;
+            color: #0f0;
+            cursor: pointer;
+            font-size: 11px;
+            font-family: inherit;
+            text-transform: uppercase;
+            transition: all 0.1s;
+            border-radius: 4px;
+        }
+
+        .pad:hover {
+            background: rgba(0, 255, 0, 0.1);
+            box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+        }
+
+        .pad:active {
+            background: #0f0;
+            color: #0a0a0a;
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.8);
+        }
+
+        .slider-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: linear-gradient(to right, #0a0a0a 0%, #0f0 50%, #0a0a0a 100%);
+            outline: none;
+            -webkit-appearance: none;
+            appearance: none;
+            cursor: pointer;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #0f0;
+            cursor: pointer;
+            box-shadow: 0 0 8px #0f0;
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #0f0;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 0 8px #0f0;
+        }
+
+        .keyboard {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 2px;
+            margin-top: 10px;
+        }
+
+        .key {
+            aspect-ratio: 1;
+            border: 1px solid #0f0;
+            background: #0a0a0a;
+            color: #0f0;
+            cursor: pointer;
+            font-size: 10px;
+            font-family: inherit;
+            transition: all 0.05s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .key:hover {
+            background: rgba(0, 255, 0, 0.05);
+        }
+
+        .key:active {
+            background: #0f0;
+            color: #0a0a0a;
+            box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
+        }
+
+        .qubit-section {
+            grid-column: 1 / -1;
+            border: 2px solid #0f0;
+            padding: 20px;
+            background: rgba(0, 255, 0, 0.02);
+            text-align: center;
+        }
+
+        .qubit-section h3 {
+            font-size: 14px;
+            margin-bottom: 15px;
+            letter-spacing: 1px;
+        }
+
+        .bloch-sphere {
+            width: 150px;
+            height: 150px;
+            margin: 0 auto;
+            border: 2px solid #0f0;
+            border-radius: 50%;
+            background: #000;
+            position: relative;
+            cursor: crosshair;
+        }
+
+        .bloch-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #0f0;
+            position: absolute;
+            box-shadow: 0 0 10px #0f0;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .footer {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 20px;
+            border-top: 2px solid #0f0;
+            font-size: 12px;
+            margin-top: 30px;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 8px 16px;
+            border: 1px solid #0f0;
+            background: rgba(0, 255, 0, 0.05);
+            border-radius: 4px;
+            font-size: 11px;
+        }
+
+        .status.connected {
+            background: rgba(0, 255, 0, 0.15);
+            box-shadow: 0 0 10px rgba(0, 255, 0, 0.3);
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+
+            .header h1 {
+                font-size: 18px;
+            }
+
+            .instrument {
+                padding: 15px;
+            }
+        }
+
+        .scan-line {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(to right, transparent, rgba(0, 255, 0, 0.3), transparent);
+            pointer-events: none;
+            animation: scan 8s linear infinite;
+            z-index: 999;
+        }
+
+        @keyframes scan {
+            0% { top: 0; }
+            100% { top: 100vh; }
+        }
+    </style>
+</head>
+<body>
+    <div class="scan-line"></div>
+
+    <div class="header">
+        <h1>⚡ xfmix</h1>
+        <p>COMPUTER MUSIC HISTORY · SYNTHESIZER + DRUM MACHINE</p>
+    </div>
+
+    <div class="container">
+        <!-- DRUM MACHINE -->
+        <div class="instrument">
+            <h2>Water Drop Drum</h2>
+
+            <div class="control-group">
+                <label class="control-label">Hit Pads</label>
+                <div class="drum-pads">
+                    <button class="pad" data-lane="0">Kick</button>
+                    <button class="pad" data-lane="1">Snare</button>
+                    <button class="pad" data-lane="2">Hat</button>
+                    <button class="pad" data-lane="3">Tom</button>
+                    <button class="pad" data-lane="4">Rim</button>
+                    <button class="pad" data-lane="5">Crash</button>
+                </div>
+            </div>
+
+            <div class="control-group slider-group">
+                <label class="control-label">Pitch</label>
+                <input type="range" id="drum-pitch" min="200" max="2000" value="800" step="10">
+            </div>
+
+            <div class="control-group slider-group">
+                <label class="control-label">Decay (ms)</label>
+                <input type="range" id="drum-decay" min="100" max="2000" value="300" step="50">
+            </div>
+
+            <div class="control-group slider-group">
+                <label class="control-label">Resonance</label>
+                <input type="range" id="drum-resonance" min="5" max="50" value="20" step="1">
+            </div>
+
+            <div class="control-group slider-group">
+                <label class="control-label">Mix Level</label>
+                <input type="range" id="drum-level" min="0" max="1" value="0.7" step="0.01">
+            </div>
+        </div>
+
+        <!-- SYNTH -->
+        <div class="instrument">
+            <h2>Engine Synthesizer</h2>
+
+            <div class="control-group">
+                <label class="control-label">Keyboard (C-B)</label>
+                <div class="keyboard" id="keyboard">
+                    <!-- Generated by JavaScript -->
+                </div>
+            </div>
+
+            <div class="control-group slider-group">
+                <label class="control-label">RPM</label>
+                <input type="range" id="engine-rpm" min="10" max="200" value="60" step="1">
+            </div>
+
+            <div class="control-group slider-group">
+                <label class="control-label">Load (Throttle)</label>
+                <input type="range" id="engine-load" min="0" max="1" value="0.5" step="0.05">
+            </div>
+
+            <div class="control-group">
+                <label class="control-label">Cylinders</label>
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+                    <button class="pad" data-cylinders="4" style="width: 100%;">4</button>
+                    <button class="pad" data-cylinders="6" style="width: 100%;">6</button>
+                    <button class="pad" data-cylinders="8" style="width: 100%;">8</button>
+                </div>
+            </div>
+
+            <div class="control-group slider-group">
+                <label class="control-label">Resonance</label>
+                <input type="range" id="engine-resonance" min="10" max="50" value="30" step="1">
+            </div>
+
+            <div class="control-group slider-group">
+                <label class="control-label">Mix Level</label>
+                <input type="range" id="engine-level" min="0" max="1" value="0.7" step="0.01">
+            </div>
+        </div>
+
+        <!-- QUBIT CONTROL -->
+        <div class="qubit-section">
+            <h3>Quantum Stochasticity (Qubit)</h3>
+            <p style="font-size: 11px; margin-bottom: 15px; opacity: 0.7;">Xenakis-inspired probability field for stochastic variations</p>
+            <div class="bloch-sphere" id="qubit-sphere">
+                <div class="bloch-dot" id="qubit-dot"></div>
+            </div>
+            <input type="range" id="qubit-slider" min="0" max="1" value="0.5" step="0.01" style="margin-top: 15px; max-width: 200px; margin-left: auto; margin-right: auto; display: block;">
+            <p style="font-size: 10px; margin-top: 10px; opacity: 0.6;">Superposition: 0% ← → 100%</p>
+        </div>
+
+        <!-- FOOTER -->
+        <div class="footer">
+            <div class="status" id="status">
+                <span id="status-text">●</span> Connecting...
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // CONSTANTS
+        const WS_URL = `ws://${window.location.host}/ws`;
+        const NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+        const BASE_NOTE = 36; // C2
+
+        // STATE
+        let ws = null;
+        let isConnected = false;
+        let currentNote = null;
+
+        // INIT
+        function init() {
+            connectWebSocket();
+            setupDrumPads();
+            setupKeyboard();
+            setupQubit();
+            setupSliders();
+            setupCylinders();
+        }
+
+        // WebSocket connection
+        function connectWebSocket() {
+            ws = new WebSocket(WS_URL);
+
+            ws.onopen = () => {
+                isConnected = true;
+                updateStatus(true);
+                console.log("✓ Connected to xfmix");
+            };
+
+            ws.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    console.debug("Server:", data);
+                } catch (e) {
+                    console.error("Message parse error:", e);
+                }
+            };
+
+            ws.onerror = (error) => {
+                console.error("WebSocket error:", error);
+                updateStatus(false);
+            };
+
+            ws.onclose = () => {
+                isConnected = false;
+                updateStatus(false);
+                console.log("✗ Disconnected");
+                setTimeout(connectWebSocket, 2000); // Reconnect
+            };
+        }
+
+        function sendMessage(data) {
+            if (isConnected && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify(data));
+            }
+        }
+
+        function updateStatus(connected) {
+            const statusEl = document.getElementById('status');
+            const textEl = document.getElementById('status-text');
+            if (connected) {
+                statusEl.classList.add('connected');
+                textEl.textContent = '◉';
+            } else {
+                statusEl.classList.remove('connected');
+                textEl.textContent = '◯';
+            }
+        }
+
+        // DRUM PADS
+        function setupDrumPads() {
+            document.querySelectorAll('.instrument:first-child .pad').forEach(pad => {
+                pad.addEventListener('click', (e) => {
+                    const lane = parseInt(e.target.dataset.lane);
+                    sendMessage({
+                        type: 'water',
+                        lane: lane,
+                        velocity: 0.8
+                    });
+                    pad.style.animation = 'none';
+                    setTimeout(() => pad.style.animation = '', 10);
+                });
+            });
+        }
+
+        // KEYBOARD
+        function setupKeyboard() {
+            const keyboard = document.getElementById('keyboard');
+            for (let i = 0; i < 12; i++) {
+                const key = document.createElement('button');
+                key.classList.add('key');
+                key.textContent = NOTES[i];
+                key.dataset.note = BASE_NOTE + i;
+                key.addEventListener('mousedown', () => playNote(parseInt(key.dataset.note), 1.0));
+                key.addEventListener('mouseup', () => releaseNote());
+                key.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    playNote(parseInt(key.dataset.note), 1.0);
+                });
+                key.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    releaseNote();
+                });
+                keyboard.appendChild(key);
+            }
+        }
+
+        function playNote(note, velocity) {
+            currentNote = note;
+            const rpm = parseInt(document.getElementById('engine-rpm').value);
+            const load = parseFloat(document.getElementById('engine-load').value);
+            const cylinders = parseInt(document.querySelector('[data-cylinders]').dataset.cylinders || 4);
+            sendMessage({
+                type: 'engine',
+                note: note,
+                velocity: velocity,
+                rpm: rpm,
+                load: load,
+                cylinders: cylinders
+            });
+        }
+
+        function releaseNote() {
+            currentNote = null;
+        }
+
+        // QUBIT (Bloch sphere)
+        function setupQubit() {
+            const sphere = document.getElementById('qubit-sphere');
+            const dot = document.getElementById('qubit-dot');
+            const slider = document.getElementById('qubit-slider');
+
+            function updateQubit(value) {
+                const angle = value * Math.PI * 2;
+                const x = Math.cos(angle) * 60;
+                const y = Math.sin(angle) * 60;
+                dot.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`;
+                sendMessage({ type: 'qubit', value: value });
+            }
+
+            sphere.addEventListener('click', (e) => {
+                const rect = sphere.getBoundingClientRect();
+                const cx = rect.left + rect.width / 2;
+                const cy = rect.top + rect.height / 2;
+                const x = e.clientX - cx;
+                const y = e.clientY - cy;
+                const angle = Math.atan2(y, x) / (Math.PI * 2);
+                const value = angle < 0 ? angle + 1 : angle;
+                slider.value = value;
+                updateQubit(value);
+            });
+
+            slider.addEventListener('input', (e) => {
+                updateQubit(parseFloat(e.target.value));
+            });
+
+            updateQubit(0.5); // Init
+        }
+
+        // SLIDERS
+        function setupSliders() {
+            const sliders = document.querySelectorAll('input[type="range"]');
+            sliders.forEach(slider => {
+                slider.addEventListener('input', (e) => {
+                    const id = e.target.id;
+                    const value = parseFloat(e.target.value);
+
+                    if (id === 'drum-level') {
+                        sendMessage({ type: 'mix', drum: value, synth: parseFloat(document.getElementById('engine-level').value) });
+                    } else if (id === 'engine-level') {
+                        sendMessage({ type: 'mix', drum: parseFloat(document.getElementById('drum-level').value), synth: value });
+                    }
+                });
+            });
+        }
+
+        // CYLINDERS
+        function setupCylinders() {
+            document.querySelectorAll('[data-cylinders]').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    // Visual feedback
+                    document.querySelectorAll('[data-cylinders]').forEach(b => b.style.opacity = '0.5');
+                    e.target.style.opacity = '1';
+                });
+            });
+        }
+
+        // START
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>
