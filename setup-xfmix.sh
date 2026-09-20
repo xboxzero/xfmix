@@ -22,8 +22,8 @@ echo "📦 Installing system dependencies..."
 echo "   (This will prompt for your password)"
 echo ""
 sudo apt-get update -qq
-sudo apt-get install -y puredata puredata-extra
-echo "✓ Pure Data installed"
+sudo apt-get install -y puredata puredata-extra pipewire-jack pipewire-alsa ffmpeg
+echo "✓ Pure Data, pipewire-jack, pipewire-alsa, ffmpeg installed"
 echo ""
 
 # Create systemd user directory

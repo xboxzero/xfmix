@@ -29,16 +29,76 @@ STATIC_DIR = XFMIX_DIR / "static"
 PD_FUDI_PORT = 9001
 PD_FUDI_ADDR = "127.0.0.1"
 HTTP_PORT = 8866
-CAMERA_CMD = [
-    "rpicam-vid",
-    "--codec", "mjpeg",
-    "--width", "640",
-    "--height", "480",
-    "--framerate", "15",
-    "--timeout", "0",
-    "--nopreview",
-    "-o", "-",
-]
+
+
+def detect_camera_cmd():
+    """Pick a camera capture command at runtime.
+
+    Preference: USB UVC cam on /dev/video0 via ffmpeg (native MJPG, no
+    transcode) → rpicam-vid for CSI cams → None. Override with
+    XFMIX_CAMERA_DEV (path) or XFMIX_CAMERA=off."""
+    if os.environ.get("XFMIX_CAMERA") == "off":
+        return None
+    dev = os.environ.get("XFMIX_CAMERA_DEV", "/dev/video0")
+    if Path(dev).exists() and Path("/usr/bin/ffmpeg").exists():
+        return [
+            "ffmpeg",
+            "-loglevel", "error",
+            "-f", "v4l2",
+            "-input_format", "mjpeg",
+            "-video_size", "640x480",
+            "-framerate", "15",
+            "-i", dev,
+            "-c:v", "copy",
+            "-f", "mjpeg",
+            "-",
+        ]
+    if Path("/usr/bin/rpicam-vid").exists():
+        return [
+            "rpicam-vid",
+            "--codec", "mjpeg",
+            "--width", "640",
+            "--height", "480",
+            "--framerate", "15",
+            "--timeout", "0",
+            "--nopreview",
+            "-o", "-",
+        ]
+    return None
+
+
+def detect_audio_cmd():
+    """Return the pd launch command prefix + audio backend args.
+
+    On a stock Pi 5 desktop PipeWire owns the audio hardware, so raw ALSA
+    `default` from pd lands on hw:0 (HDMI) and is silently lost. The
+    reliable route is pd -jack via pw-jack (the PipeWire JACK shim) — pd
+    appears as a JACK client and PipeWire auto-connects it to the current
+    default sink (manage with `wpctl set-default <id>`).
+
+    Overrides:
+      XFMIX_NOAUDIO=1          → pd -noaudio (headless dev/CI)
+      XFMIX_AUDIO=alsa         → bare pd -alsa (works only if you've put a
+                                 PipeWire ALSA config on `default`, or
+                                 you're not running PipeWire)
+      XFMIX_AUDIO_CARD=<name>  → pd -alsa -alsaadd plughw:CARD=<name>;
+                                 useful when PipeWire is not running."""
+    if os.environ.get("XFMIX_NOAUDIO") == "1":
+        return ["pd", "-nogui", "-noaudio"]
+
+    backend = os.environ.get("XFMIX_AUDIO", "").lower()
+
+    if backend == "alsa" or os.environ.get("XFMIX_AUDIO_CARD"):
+        cmd = ["pd", "-nogui", "-alsa", "-channels", "2", "-r", "48000", "-audiobuf", "20"]
+        card = os.environ.get("XFMIX_AUDIO_CARD")
+        if card:
+            cmd += ["-alsaadd", f"plughw:CARD={card},DEV=0", "-audiooutdev", "1"]
+        return cmd
+
+    if Path("/usr/bin/pw-jack").exists():
+        return ["pw-jack", "pd", "-nogui", "-jack", "-channels", "2", "-r", "48000"]
+
+    return ["pd", "-nogui", "-jack", "-channels", "2", "-r", "48000"]
 
 # Global state
 pd_process = None
@@ -161,15 +221,8 @@ async def start_pd():
     if not main_patch.exists():
         raise FileNotFoundError(f"Patch not found: {main_patch}")
 
-    # pd flag notes:
-    #   -r (not -samplerate); -rt needs setuid so we skip it; XFMIX_NOAUDIO
-    #   lets you boot without an audio device (useful for headless dev/CI).
-    cmd = ["pd", "-nogui"]
-    if os.environ.get("XFMIX_NOAUDIO") == "1":
-        cmd += ["-noaudio"]
-    else:
-        cmd += ["-alsa", "-channels", "2", "-r", "48000", "-audiobuf", "20"]
-    cmd += ["-open", str(main_patch)]
+    cmd = detect_audio_cmd() + ["-open", str(main_patch)]
+    logger.info(f"  pd cmd: {' '.join(cmd)}")
 
     try:
         pd_process = subprocess.Popen(
@@ -279,16 +332,19 @@ class FileHandler(SimpleHTTPRequestHandler):
                 self.send_error(403)
 
     def handle_camera(self):
-        """Stream Pi camera as multipart MJPEG (one rpicam-vid per client)"""
-        proc = None
+        """Stream camera as multipart MJPEG (one capture process per client)"""
+        cmd = detect_camera_cmd()
+        if cmd is None:
+            self.send_error(503, "Camera unavailable")
+            return
         try:
             proc = subprocess.Popen(
-                CAMERA_CMD,
+                cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.DEVNULL,
             )
         except FileNotFoundError:
-            logger.error("✗ rpicam-vid not found")
+            logger.error(f"✗ Camera binary not found: {cmd[0]}")
             self.send_error(503, "Camera unavailable")
             return
 
